@@ -18,8 +18,6 @@ float accX, accY, accZ;
 float accXC, accYC, accZC;                       // Raw acceleration data
 float filteredAccX, filteredAccY, filteredAccZ;  // Filtered acceleration data
 float accMagnitude;                              // Magnitude of the acceleration vector
-float velocity = 0;                              // Current velocity (m/s)
-float velocityX, velocityY, velocityZ;
 float prevTime = 0;  // Previous time for integration
 float dt;            // Time delta for integration
 
@@ -51,22 +49,6 @@ void setup() {
   File dataFile = SD.open("datalog.txt", FILE_WRITE);
   dataFile.println("time,vel");
   dataFile.close();
-
-
-
-  float tempX, tempY, tempZ;
-  for (int i = 0; i < 200; i++) {
-    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-    if (i >= 50) {
-      mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-      tempX += ax / 16384.0;
-      tempY += ay / 16384.0;
-      tempZ += az / 16384.0;
-    }
-  }
-  accXC = tempX / 151.0;
-  accYC = tempY / 151.0;
-  accZC = tempZ / 151.0;
 
   delay(2000);
   prevTime = millis();
@@ -122,30 +104,31 @@ void loop() {
   prevTime = currentTime;
 
   // Integrate acceleration to compute velocity
-  velocityX += filteredAccX * dt * 0.999;
-  velocityY += filteredAccY * dt * 0.999;
-  velocityZ += filteredAccZ * dt * 0.999;
+  // float velocityX += filteredAccX * dt * 0.999;
+  // float velocityY += filteredAccY * dt * 0.999;
+  // float velocityZ += filteredAccZ * dt * 0.999;
 
 
-  velocity = sqrt(sq(velocityX) + sq(velocityY) + sq(velocityZ));
-  accMagnitude = sqrt(sq(filteredAccX) + sq(filteredAccY) + sq(filteredAccZ));
+  // float velocity = sqrt(sq(velocityX) + sq(velocityY) + sq(velocityZ));
+  accMagnitude = abs(sqrt(sq(filteredAccX) + sq(filteredAccY) + sq(filteredAccZ)) - 9.4);
+  float velocity = accMagnitude * dt * 0.999;
+
+ if (accMagnitude < 1) {
+    velocity = 0;
+    accMagnitude = 0;
+  }
+
   Serial.print("Acceleration: ");
   Serial.print(accMagnitude);
   Serial.print(",Velocity: ");
   Serial.println(velocity);
-  if (accMagnitude < 0.5) {
-    velocityX = 0;
-    velocityY = 0;
-    velocityZ = 0;
-    velocity = 0;
-  }
+ 
 
   // so you have to close this one before opening another.
   File dataFile = SD.open("datalog.txt", FILE_WRITE);
 
   // if the file is available, write to it:
-  String dataString = String(millis()) + ",";
-  dataString += String(velocity);
+  String dataString = String(millis()) + "," + String(velocity);
   if (dataFile) {
     dataFile.println(dataString);
     dataFile.close();
